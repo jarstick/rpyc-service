@@ -1,7 +1,7 @@
 import rpyc
 
 
-class RpcError(rpyc.core.vinegar.GenericException):
+class RpcError(EOFError, rpyc.core.vinegar.GenericException):
     def __init__(self, code: int = 1, error: str = ""):
         super().__init__(error)
         self.error = error
