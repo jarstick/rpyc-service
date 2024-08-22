@@ -18,8 +18,7 @@ async def login(request):
     try:
         asyncResult = async_(authConn.root.login)(**request.json)
         Result = asyncResult.value
-        print(type(Result))
-        return json({"code": 0, "data": {"userInfo": Result}, "msg": "success"})
+        return json({"code": 0, "data": {"userInfo": Json.loads(Result)}, "msg": "success"})
     except Exception as e:
         log.error(e)
         return json({"code": 1, "data": None, "error": f"账号: {request.json.get("phone", "")}登录失败."})
@@ -30,10 +29,21 @@ async def register(request):
     try:
         asyncResult = async_(authConn.root.register)(**request.json)
         Result = asyncResult.value
-        return json({"code": 0, "data": {"userInfo": Result}, "msg": "success"})
+        return json({"code": 0, "data": {"userInfo": Json.loads(Result)}, "msg": "success"})
     except Exception as e:
         log.error(e)
         return json({"code": 1, "data": None, "error": f"注册用户[{request.json.get("username", "")}]失败"})
+
+
+@app.route("/user/refreshToken", methods=["POST"])
+async def refreshToken(request):
+    try:
+        asyncResult = async_(authConn.root.refreshToken)(**request.json)
+        Result = asyncResult.value
+        return json({"code": 0, "data": Json.loads(Result), "msg": "success"})
+    except Exception as e:
+        log.error(e)
+        return json({"code": 1, "data": None, "error": e.error})
 
 
 if __name__ == "__main__":

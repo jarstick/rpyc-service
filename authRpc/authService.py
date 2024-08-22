@@ -7,12 +7,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
 
-from authRpc.authServiceImpl import logout, login, verifyToken, refreshToken, register
+from authRpc.authServiceImpl import logout, login, verifyToken, register, refreshTokenByToken
 from authRpc.config.conf import MYSQL_USER, MYSQL_PASSWORD, MYSQL_HOST, MYSQL_DB, REDIS_PORT, REDIS_HOST, \
     REDIS_PASSWORD, REDIS_DB, ASCII_TEXT, MYSQL_PORT
 from loguru import logger as log
 
-from authRpc.core.serializer import JSONSerializer
 from authRpc.entity import BaseModel
 
 
@@ -39,11 +38,6 @@ class AuthService(Service):
     ALIASES = ['auth-service']
     sess = localSession()
     rds = localRedis()
-
-    def on_connect(self, conn):
-        super().on_connect(conn)
-        # 设置自定义序列化器
-        conn._config["serializer"] = JSONSerializer()
 
     def register(self, phone, username, email, password):
         """
@@ -76,13 +70,13 @@ class AuthService(Service):
         """
         return verifyToken(token)
 
-    def refreshToken(self, refreshTokenStr):
+    def refreshToken(self, token):
         """
         对外暴露的刷新token接口
         :param refreshTokenStr:
         :return:
         """
-        return refreshToken(AuthService.rds, refreshTokenStr)
+        return refreshTokenByToken(AuthService.rds, token)
 
     def logout(self, refreshTokenStr):
         """

@@ -1,12 +1,12 @@
 import json
-from datetime import datetime, timedelta
+import logging
+import time
 
 import bcrypt
 import jwt
-from tortoise.exceptions import DoesNotExist
-
 from authRpc.config.conf import JWT_EXP_DELTA_SECONDS, \
-    JWT_ALGORITHM, JWT_SECRET, JWT_REFRESH_EXP_DELTA_SECONDS
+    JWT_ALGORITHM, JWT_SECRET
+from authRpc.core.redisOp import getValue
 from authRpc.dao.sysUser import SysUserDao
 from authRpc.exc.sysUser import RpcError
 from authRpc.validators.sysUser import validateEmail, validatePhone, validateUsername, validatePassword
@@ -61,43 +61,28 @@ def login(redisCli, session, phone, password):
     :param password: 明文密码
     :return:
     """
-    try:
-        user = SysUserDao.queryUserByPhone(session, phone)
-        if user is None:
-            raise RpcError(error="用户不存在")
-        passPwdVerifyFlag = verifyPassword(password, user.password)
-        if not passPwdVerifyFlag:
-            raise RpcError(error="账号或密码错误")
-        redisRefreshToken = ""
-        redisAccessToken = ""
-        try:
-            redisRefreshToken = redisCli.get(f"refresh_token:{user.phone}")
-            redisAccessToken = redisCli.get(f"access_token:{user.phone}")
-        except Exception:
-            ...
-        if not redisRefreshToken:
-            redisCli.delete(f"access_token:{user.phone}")
-            redisAccessToken = createAccessToken(user.phone)
-            redisRefreshToken = createRefreshToken(user.phone)
-            saveAccessToken(redisCli, user.phone, redisAccessToken)
-            saveRefreshToken(redisCli, user.phone, redisRefreshToken)
-        else:
-            if not redisAccessToken:
-                redisAccessToken = createAccessToken(user.phone)
-                saveAccessToken(redisCli, user.phone, redisAccessToken)
-                redisCli.expire(f"refresh_token:{user.phone}", JWT_REFRESH_EXP_DELTA_SECONDS)
+    user = SysUserDao.queryUserByPhone(session, phone)
+    if user is None:
+        raise RpcError(error="用户不存在")
+    passPwdVerifyFlag = verifyPassword(password, user.password)
+    if not passPwdVerifyFlag:
+        raise RpcError(error="账号或密码错误")
 
-        return {
+    try:
+        redisAccessToken,  accessTokenTTL = getValue(redisCli, f"access_token:{user.phone}")
+        if not redisAccessToken:
+            redisAccessToken = createAccessToken(user.phone)
+            saveAccessToken(redisCli, user.phone, redisAccessToken)
+        return json.dumps({
             "id": user.id,
             "username": user.username,
             "phone": user.phone,
             "email": user.email,
             "access_token": redisAccessToken,
-            "refresh_token": redisAccessToken
-        }
-
-    except DoesNotExist:
-        raise RpcError(error="用户不存在")
+            "access_token_ttl": accessTokenTTL if accessTokenTTL else JWT_EXP_DELTA_SECONDS,
+        }, ensure_ascii=False)
+    except Exception:
+        raise RpcError(error="登录失败")
 
 
 def createAccessToken(phone):
@@ -108,39 +93,12 @@ def createAccessToken(phone):
     """
     payload = {
         'sub': phone,
-        'exp': datetime.utcnow() + timedelta(seconds=JWT_EXP_DELTA_SECONDS)
+        'iat': time.time()
     }
     token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
     if isinstance(token, bytes):
         token = token.decode('utf-8')
     return token
-
-
-def createRefreshToken(phone):
-    """
-    创建刷新令牌
-    :param phone: 手机号码
-    :return: token: 令牌
-    """
-    payload = {
-        'sub': phone,
-        'exp': datetime.utcnow() + timedelta(seconds=JWT_REFRESH_EXP_DELTA_SECONDS)
-    }
-    token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
-    if isinstance(token, bytes):
-        token = token.decode('utf-8')
-    return token
-
-
-def saveRefreshToken(redisCli, phone, tokenStr):
-    """
-    保存刷新令牌
-    :param redisCli: redis client
-    :param phone: 手机号码
-    :param tokenStr: 令牌
-    :return:
-    """
-    redisCli.set(f"refresh_token:{phone}", tokenStr, JWT_REFRESH_EXP_DELTA_SECONDS)
 
 
 def saveAccessToken(redisCli, phone, tokenStr):
@@ -169,25 +127,22 @@ def verifyToken(token):
         return None
 
 
-def refreshToken(redisCli, refreshTokenStr):
-    """
-    刷新令牌
-    :param redisCli: redis client
-    :param refreshTokenStr: 刷新令牌
-    :return:
-    """
+def refreshTokenByToken(redisCli, tokenStr):
+    phone = verifyToken(tokenStr)
+    if not phone:
+        raise RpcError(error="token无效")
+
+    storeToken, _ = getValue(redisCli, f"access_token:{phone}")
+    if storeToken != tokenStr:
+        raise RpcError(error="token无效")
     try:
-        payload = jwt.decode(refreshTokenStr, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        phone = payload['sub']
-        storedToken = redisCli.get(f"refresh_token:{phone}")
-        if storedToken and storedToken.decode() == refreshTokenStr:
-            newAccessToken = createAccessToken(phone)
-            return {"access_token": newAccessToken}
-        return None
-    except jwt.ExpiredSignatureError:
-        return None
-    except jwt.InvalidTokenError:
-        return None
+        redisCli.delete(f"access_token:{phone}")
+        newToken = createAccessToken(phone)
+        saveAccessToken(redisCli, phone, newToken)
+        return json.dumps({"new_token": newToken, "new_token_ttl": JWT_EXP_DELTA_SECONDS})
+    except Exception as e:
+        logging.info(e)
+        raise RpcError(error="刷新token失败")
 
 
 def logout(redisCli, refreshTokenStr):
@@ -199,8 +154,8 @@ def logout(redisCli, refreshTokenStr):
     """
     try:
         payload = jwt.decode(refreshTokenStr, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        username = payload['sub']
-        redisCli.delete(f"refresh_token:{username}")
+        phone = payload['sub']
+        redisCli.delete(f"access_token:{phone}")
     except jwt.ExpiredSignatureError:
         pass
     except jwt.InvalidTokenError:
