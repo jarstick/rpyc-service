@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
 
-from authRpc.authServiceImpl import logout, login, verifyToken, register, refreshTokenByToken
+from authRpc.service.authServiceImpl import logout, login, verifyToken, register, refreshTokenByToken
 from authRpc.config.conf import MYSQL_USER, MYSQL_PASSWORD, MYSQL_HOST, MYSQL_DB, REDIS_PORT, REDIS_HOST, \
     REDIS_PASSWORD, REDIS_DB, MYSQL_PORT
 from loguru import logger as log

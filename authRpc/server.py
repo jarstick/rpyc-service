@@ -3,7 +3,7 @@ import asyncio
 from loguru import logger as log
 from rpyc import ThreadedServer
 
-from authRpc.authService import AuthService
+from authRpc.service.authService import AuthService
 from authRpc.config.conf import ASCII_TEXT
 
 
