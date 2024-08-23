@@ -23,8 +23,6 @@ ASCII_TEXT = r"""
          \_||_|\____|\___)_| |_|  (___/ \____)_|     \_/ |_|\____)____)
 """
 
-
-
 # JWT配置
 JWT_SECRET = 'AZl1OwtT7M$D5#uo'
 JWT_ALGORITHM = 'HS256'

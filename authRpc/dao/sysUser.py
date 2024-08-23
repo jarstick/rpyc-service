@@ -1,5 +1,5 @@
 from authRpc.entity.sysUser import SysUser
-from authRpc.exc.sysUser import RpcError
+from authRpc.exc.err import RpcError
 
 
 class SysUserDao:

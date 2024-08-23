@@ -8,31 +8,27 @@ from authRpc.config.conf import JWT_EXP_DELTA_SECONDS, \
     JWT_ALGORITHM, JWT_SECRET
 from authRpc.core.redisOp import getValue
 from authRpc.dao.sysUser import SysUserDao
-from authRpc.exc.sysUser import RpcError
-from authRpc.validators.sysUser import validateEmail, validatePhone, validateUsername, validatePassword
+from authRpc.exc.err import RpcError
+from authRpc.validators.sysUser import validateRegister
 
 
 # 用户注册
-def register(session, phone, name, email, password):
+def register(session, phone, username, email, password):
     """
     用户注册
     :param session: 数据库会话
     :param phone: 手机号码
-    :param name: 用户名
+    :param username: 用户名
     :param email: 邮箱
     :param password: 明文密码
     :return:
     """
-    if not validateEmail(email):
-        raise RpcError(error="邮箱格式错误!")
-    if not validatePhone(phone):
-        raise RpcError(error="手机号码格式错误!")
-    if not validatePassword(password):
-        raise RpcError(error="密码长度至少8位")
-    if not validateUsername(name):
-        raise RpcError(error="用户名格式错误!")
+    # 校验注册参数
+    validateRegister(phone, password, username, email)
+    # 密码hash
     hashedPassword = hashPassword(password.strip())
-    userInfo = SysUserDao.createUser(session, name, phone, hashedPassword, email)
+    # 创建用户
+    userInfo = SysUserDao.createUser(session, username, phone, hashedPassword, email)
     if userInfo is None:
         raise RpcError(error="注册用户失败")
 
