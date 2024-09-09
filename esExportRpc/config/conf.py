@@ -12,14 +12,24 @@ MYSQL_PASSWORD = "123456"
 MYSQL_DB = "nameko"
 MYSQL_CONNECTION_URL = f"mysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}"
 
+# ES配置
+ES_HOST = ""
+ES_PORT = 9200
+
+# ali oss配置
+ALI_OSS_ENDPOINT = ""
+ALI_OSS_ACCESS_KEY_ID = ""
+ALI_OSS_ACCESS_KEY_SECRET = ""
+ALI_OSS_BUCKET_NAME = ""
+
 # SERVER配置
 SECRET_KEY = "HSfV1HqrMmFKvGNC"
 
 # js-stick-letters
 ASCII_TEXT = r"""
-          ___          __   ___  __          __   ___ 
- /\  |  |  |  |__|    /__` |__  |__) \  / | /  ` |__  
-/~~\ \__/  |  |  |    .__/ |___ |  \  \/  | \__, |___ 
+ ___  __      ___      __   __   __  ___     __   ___  __          __   ___ 
+|__  /__`    |__  \_/ |__) /  \ |__)  |     /__` |__  |__) \  / | /  ` |__  
+|___ .__/    |___ / \ |    \__/ |  \  |     .__/ |___ |  \  \/  | \__, |___ 
 """
 
 # JWT配置
